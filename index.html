@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Payout Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: translateY(-2px);
+        }
+        .player-item {
+            transition: all 0.2s ease;
+        }
+        .player-item:hover {
+            background-color: #f3f4f6;
+        }
+        .chip-count {
+            background-color: #f59e0b;
+            color: white;
+        }
+        .rebuys-count {
+            background-color: #10b981;
+            color: white;
+        }
+        .positive-balance {
+            color: #10b981;
+        }
+        .negative-balance {
+            color: #ef4444;
+        }
+        .transaction-item {
+            border-left: 4px solid #3b82f6;
+        }
+        #resultsContainer {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-indigo-700 mb-2">
+                <i class="fas fa-poker-chips mr-2"></i> Poker Payout Calculator
+            </h1>
+            <p class="text-gray-600">Calculate poker tournament payouts and settle debts between players</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Input Section -->
+            <div class="space-y-6">
+                <div class="card bg-white rounded-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-cog mr-2 text-indigo-500"></i> Game Settings
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="buyIn" class="block text-sm font-medium text-gray-700 mb-1">
+                                <i class="fas fa-money-bill-wave mr-1"></i> Buy-in Amount ($)
+                            </label>
+                            <input type="number" id="buyIn" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. 20">
+                        </div>
+                        <div>
+                            <label for="initialStack" class="block text-sm font-medium text-gray-700 mb-1">
+                                <i class="fas fa-coins mr-1"></i> Initial Stack Size
+                            </label>
+                            <input type="number" id="initialStack" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. 5000">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-white rounded-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-user-plus mr-2 text-indigo-500"></i> Add Player
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="playerName" class="block text-sm font-medium text-gray-700 mb-1">
+                                <i class="fas fa-user mr-1"></i> Player Name
+                            </label>
+                            <input type="text" id="playerName" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Player name">
+                        </div>
+                        <div>
+                            <label for="finalChips" class="block text-sm font-medium text-gray-700 mb-1">
+                                <i class="fas fa-poker-chips mr-1"></i> Final Chip Count
+                            </label>
+                            <input type="number" id="finalChips" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Chips at end of game">
+                        </div>
+                        <div>
+                            <label for="rebuys" class="block text-sm font-medium text-gray-700 mb-1">
+                                <i class="fas fa-redo mr-1"></i> Number of Rebuys
+                            </label>
+                            <input type="number" id="rebuys" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="0" value="0">
+                        </div>
+                        <div class="flex space-x-3 pt-2">
+                            <button id="addPlayerBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md transition flex items-center justify-center">
+                                <i class="fas fa-plus mr-2"></i> Add Player
+                            </button>
+                            <button id="editPlayerBtn" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded-md transition flex items-center justify-center">
+                                <i class="fas fa-edit mr-2"></i> Edit Player
+                            </button>
+                            <button id="removePlayerBtn" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md transition flex items-center justify-center">
+                                <i class="fas fa-trash mr-2"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-white rounded-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-users mr-2 text-indigo-500"></i> Player List
+                    </h2>
+                    <div class="border border-gray-200 rounded-md overflow-hidden">
+                        <div id="playerList" class="divide-y divide-gray-200 max-h-64 overflow-y-auto">
+                            <div class="text-center py-4 text-gray-500">
+                                No players added yet
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex space-x-4">
+                    <button id="calculateBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-md transition flex items-center justify-center text-lg font-medium">
+                        <i class="fas fa-calculator mr-2"></i> Calculate Payouts
+                    </button>
+                    <button id="clearAllBtn" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-md transition flex items-center justify-center text-lg font-medium">
+                        <i class="fas fa-broom mr-2"></i> Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="card bg-white rounded-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-file-invoice-dollar mr-2 text-indigo-500"></i> Results
+                </h2>
+                <div id="resultsContainer" class="space-y-6">
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-info-circle text-3xl mb-2"></i>
+                        <p>Enter game details and player information, then click "Calculate Payouts" to see results.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Store players
+            let players = [];
+            let selectedPlayerIndex = -1;
+
+            // DOM elements
+            const buyInInput = document.getElementById('buyIn');
+            const initialStackInput = document.getElementById('initialStack');
+            const playerNameInput = document.getElementById('playerName');
+            const finalChipsInput = document.getElementById('finalChips');
+            const rebuysInput = document.getElementById('rebuys');
+            const playerList = document.getElementById('playerList');
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            // Buttons
+            const addPlayerBtn = document.getElementById('addPlayerBtn');
+            const editPlayerBtn = document.getElementById('editPlayerBtn');
+            const removePlayerBtn = document.getElementById('removePlayerBtn');
+            const calculateBtn = document.getElementById('calculateBtn');
+            const clearAllBtn = document.getElementById('clearAllBtn');
+
+            // Add player event
+            addPlayerBtn.addEventListener('click', addPlayer);
+            
+            // Edit player event
+            editPlayerBtn.addEventListener('click', editPlayer);
+            
+            // Remove player event
+            removePlayerBtn.addEventListener('click', removePlayer);
+            
+            // Calculate payouts event
+            calculateBtn.addEventListener('click', calculatePayouts);
+            
+            // Clear all event
+            clearAllBtn.addEventListener('click', clearAll);
+            
+            // Player list click event for selection
+            playerList.addEventListener('click', function(e) {
+                const playerItem = e.target.closest('.player-item');
+                if (playerItem) {
+                    // Remove previous selection
+                    const prevSelected = playerList.querySelector('.bg-blue-50');
+                    if (prevSelected) prevSelected.classList.remove('bg-blue-50', 'border-blue-200');
+                    
+                    // Add selection to clicked item
+                    playerItem.classList.add('bg-blue-50', 'border-blue-200');
+                    
+                    // Get player index from data attribute
+                    selectedPlayerIndex = parseInt(playerItem.dataset.index);
+                    
+                    // Fill form with player data
+                    const player = players[selectedPlayerIndex];
+                    playerNameInput.value = player.name;
+                    finalChipsInput.value = player.chips;
+                    rebuysInput.value = player.rebuys;
+                }
+            });
+
+            // Add player function
+            function addPlayer() {
+                try {
+                    const name = playerNameInput.value.trim();
+                    const chips = parseInt(finalChipsInput.value);
+                    const rebuys = parseInt(rebuysInput.value);
+                    
+                    if (!name || isNaN(chips) || chips < 0 || isNaN(rebuys) || rebuys < 0) {
+                        throw new Error('Please enter valid player data');
+                    }
+                    
+                    // Add player to array
+                    players.push({
+                        name: name,
+                        chips: chips,
+                        rebuys: rebuys
+                    });
+                    
+                    // Update player list
+                    updatePlayerList();
+                    
+                    // Clear form
+                    clearForm();
+                    
+                    // Reset selection
+                    selectedPlayerIndex = -1;
+                    
+                } catch (error) {
+                    showAlert(error.message, 'error');
+                }
+            }
+            
+            // Edit player function
+            function editPlayer() {
+                try {
+                    if (selectedPlayerIndex === -1) {
+                        throw new Error('Please select a player to edit');
+                    }
+                    
+                    const name = playerNameInput.value.trim();
+                    const chips = parseInt(finalChipsInput.value);
+                    const rebuys = parseInt(rebuysInput.value);
+                    
+                    if (!name || isNaN(chips) || chips < 0 || isNaN(rebuys) || rebuys < 0) {
+                        throw new Error('Please enter valid player data');
+                    }
+                    
+                    // Update player in array
+                    players[selectedPlayerIndex] = {
+                        name: name,
+                        chips: chips,
+                        rebuys: rebuys
+                    };
+                    
+                    // Update player list
+                    updatePlayerList();
+                    
+                    // Clear form
+                    clearForm();
+                    
+                    // Reset selection
+                    selectedPlayerIndex = -1;
+                    
+                } catch (error) {
+                    showAlert(error.message, 'error');
+                }
+            }
+            
+            // Remove player function
+            function removePlayer() {
+                try {
+                    if (selectedPlayerIndex === -1) {
+                        throw new Error('Please select a player to remove');
+                    }
+                    
+                    // Remove player from array
+                    players.splice(selectedPlayerIndex, 1);
+                    
+                    // Update player list
+                    updatePlayerList();
+                    
+                    // Clear form
+                    clearForm();
+                    
+                    // Reset selection
+                    selectedPlayerIndex = -1;
+                    
+                } catch (error) {
+                    showAlert(error.message, 'error');
+                }
+            }
+            
+            // Update player list UI
+            function updatePlayerList() {
+                if (players.length === 0) {
+                    playerList.innerHTML = `
+                        <div class="text-center py-4 text-gray-500">
+                            No players added yet
+                        </div>
+                    `;
+                    return;
+                }
+                
+                playerList.innerHTML = '';
+                players.forEach((player, index) => {
+                    const playerItem = document.createElement('div');
+                    playerItem.className = 'player-item p-3 cursor-pointer border border-transparent';
+                    playerItem.dataset.index = index;
+                    
+                    playerItem.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <div class="font-medium">${player.name}</div>
+                            <div class="flex space-x-2">
+                                <span class="chip-count text-xs font-bold px-2 py-1 rounded-full">${player.chips} chips</span>
+                                <span class="rebuys-count text-xs font-bold px-2 py-1 rounded-full">${player.rebuys} rebuys</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    playerList.appendChild(playerItem);
+                });
+            }
+            
+            // Clear form inputs
+            function clearForm() {
+                playerNameInput.value = '';
+                finalChipsInput.value = '';
+                rebuysInput.value = '0';
+            }
+            
+            // Calculate payouts function
+            function calculatePayouts() {
+                try {
+                    const buyIn = parseFloat(buyInInput.value);
+                    const initialStack = parseInt(initialStackInput.value);
+                    
+                    if (isNaN(buyIn) || buyIn <= 0 || isNaN(initialStack) || initialStack <= 0) {
+                        throw new Error('Please enter valid buy-in and stack size');
+                    }
+                    
+                    if (players.length < 2) {
+                        throw new Error('Please add at least 2 players');
+                    }
+                    
+                    // Calculate payouts
+                    const payouts = calculatePayout(players, buyIn, initialStack);
+                    
+                    // Calculate transactions
+                    const transactions = settleDebts(payouts);
+                    
+                    // Display results
+                    displayResults(payouts, transactions);
+                    
+                } catch (error) {
+                    showAlert(error.message, 'error');
+                }
+            }
+            
+            // Calculate payout logic
+            function calculatePayout(players, buyIn, initialStack) {
+                const results = {};
+                const totalBuyIns = players.length + players.reduce((sum, player) => sum + player.rebuys, 0);
+                const totalMoneyInGame = totalBuyIns * buyIn;
+                const totalChipsInGame = totalBuyIns * initialStack;
+                
+                players.forEach(player => {
+                    const name = player.name;
+                    const finalChips = player.chips;
+                    const rebuys = player.rebuys;
+                    const totalInvestment = (1 + rebuys) * buyIn;
+                    const chipShareValue = (finalChips / totalChipsInGame) * totalMoneyInGame;
+                    const netResult = chipShareValue - totalInvestment;
+                    results[name] = netResult;
+                });
+                
+                return results;
+            }
+            
+            // Settle debts logic
+            function settleDebts(payouts) {
+                const creditors = [];
+                const debtors = [];
+                
+                // Separate creditors and debtors
+                for (const [player, balance] of Object.entries(payouts)) {
+                    if (balance > 0) {
+                        creditors.push({ player, amount: balance });
+                    } else if (balance < 0) {
+                        debtors.push({ player, amount: -balance });
+                    }
+                }
+                
+                // Sort from highest to lowest
+                creditors.sort((a, b) => b.amount - a.amount);
+                debtors.sort((a, b) => b.amount - a.amount);
+                
+                const transactions = [];
+                
+                while (creditors.length > 0 && debtors.length > 0) {
+                    const creditor = creditors[0];
+                    const debtor = debtors[0];
+                    
+                    const payment = Math.min(creditor.amount, debtor.amount);
+                    
+                    transactions.push({
+                        from: debtor.player,
+                        to: creditor.player,
+                        amount: payment.toFixed(2)
+                    });
+                    
+                    // Update amounts
+                    creditor.amount -= payment;
+                    debtor.amount -= payment;
+                    
+                    // Remove if amount is zero
+                    if (creditor.amount === 0) creditors.shift();
+                    if (debtor.amount === 0) debtors.shift();
+                }
+                
+                return transactions;
+            }
+            
+            // Display results
+            function displayResults(payouts, transactions) {
+                // Create net results section
+                let resultsHTML = `
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-chart-line mr-2 text-indigo-500"></i> Net Results
+                        </h3>
+                        <div class="bg-gray-50 rounded-md p-4">
+                            <p class="text-sm text-gray-600 mb-3">Positive means they are owed money, negative means they owe money</p>
+                            <div class="space-y-2">
+                `;
+                
+                // Add each player's net result
+                for (const [player, balance] of Object.entries(payouts)) {
+                    const balanceClass = balance >= 0 ? 'positive-balance' : 'negative-balance';
+                    const sign = balance >= 0 ? '+' : '';
+                    resultsHTML += `
+                        <div class="flex justify-between items-center">
+                            <span>${player}</span>
+                            <span class="${balanceClass} font-medium">${sign}$${balance.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+                
+                resultsHTML += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Create transactions section
+                resultsHTML += `
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-exchange-alt mr-2 text-indigo-500"></i> Transactions
+                        </h3>
+                        <div class="space-y-3">
+                `;
+                
+                if (transactions.length === 0) {
+                    resultsHTML += `
+                        <div class="text-center py-4 text-gray-500">
+                            No transactions needed - all balances are zero
+                        </div>
+                    `;
+                } else {
+                    transactions.forEach(transaction => {
+                        resultsHTML += `
+                            <div class="transaction-item bg-gray-50 rounded-md p-4 pl-5">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <span class="font-medium">${transaction.from}</span>
+                                        <span class="mx-2 text-gray-500">pays</span>
+                                        <span class="font-medium">${transaction.to}</span>
+                                    </div>
+                                    <div class="font-bold text-indigo-600">$${transaction.amount}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                resultsHTML += `
+                        </div>
+                    </div>
+                `;
+                
+                // Update results container
+                resultsContainer.innerHTML = resultsHTML;
+            }
+            
+            // Clear all function
+            function clearAll() {
+                players = [];
+                selectedPlayerIndex = -1;
+                updatePlayerList();
+                clearForm();
+                buyInInput.value = '';
+                initialStackInput.value = '';
+                resultsContainer.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-info-circle text-3xl mb-2"></i>
+                        <p>Enter game details and player information, then click "Calculate Payouts" to see results.</p>
+                    </div>
+                `;
+            }
+            
+            // Show alert function
+            function showAlert(message, type = 'info') {
+                let alertClass = 'bg-blue-100 border-blue-400 text-blue-700';
+                let iconClass = 'fas fa-info-circle text-blue-500';
+                
+                if (type === 'error') {
+                    alertClass = 'bg-red-100 border-red-400 text-red-700';
+                    iconClass = 'fas fa-exclamation-circle text-red-500';
+                } else if (type === 'success') {
+                    alertClass = 'bg-green-100 border-green-400 text-green-700';
+                    iconClass = 'fas fa-check-circle text-green-500';
+                }
+                
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `${alertClass} border-l-4 p-4 mb-4 rounded-md flex items-start`;
+                alertDiv.innerHTML = `
+                    <i class="${iconClass} text-xl mr-3 mt-1"></i>
+                    <div>${message}</div>
+                `;
+                
+                // Prepend to body
+                document.body.prepend(alertDiv);
+                
+                // Remove after 5 seconds
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 5000);
+            }
+        });
+    </script>
+</body>
+</html>
