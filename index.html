@@ -29,6 +29,10 @@
             background-color: #10b981;
             color: white;
         }
+        .hands-count {
+            background-color: #8b5cf6;
+            color: white;
+        }
         .positive-balance {
             color: #10b981;
         }
@@ -56,6 +60,60 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+        /* Toggle switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #3b82f6;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .slider-label {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+        }
+        .slider-label.left {
+            left: 8px;
+        }
+        .slider-label.right {
+            right: 8px;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -65,6 +123,26 @@
                 <i class="fas fa-poker-chips mr-2"></i> Poker Payout Calculator
             </h1>
             <p class="text-gray-600">Calculate poker tournament payouts and settle debts between players</p>
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="flex justify-center mb-8">
+            <div class="card bg-white rounded-lg p-4">
+                <div class="flex items-center space-x-4">
+                    <span class="font-medium">Tournament Mode</span>
+                    <label class="switch">
+                        <input type="checkbox" id="modeToggle">
+                        <span class="slider">
+                            <span class="slider-label left">T</span>
+                            <span class="slider-label right">G</span>
+                        </span>
+                    </label>
+                    <span class="font-medium">Group Mode</span>
+                </div>
+                <p class="text-sm text-gray-500 mt-2 text-center" id="modeDescription">
+                    Tournament mode uses rebuys, Group mode uses total hands played
+                </p>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -107,11 +185,17 @@
                             </label>
                             <input type="number" id="finalChips" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Chips at end of game">
                         </div>
-                        <div>
+                        <div id="rebuysContainer">
                             <label for="rebuys" class="block text-sm font-medium text-gray-700 mb-1">
                                 <i class="fas fa-redo mr-1"></i> Number of Rebuys
                             </label>
                             <input type="number" id="rebuys" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="0" value="0">
+                        </div>
+                        <div id="handsContainer" class="hidden">
+                            <label for="hands" class="block text-sm font-medium text-gray-700 mb-1">
+                                <i class="fas fa-clock mr-1"></i> Hands Played
+                            </label>
+                            <input type="number" id="hands" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="0" value="0">
                         </div>
                         <div class="flex space-x-3 pt-2">
                             <button id="addPlayerBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md transition flex items-center justify-center">
@@ -170,6 +254,7 @@
             // Store players
             let players = [];
             let selectedPlayerIndex = -1;
+            let isGroupMode = false;
 
             // DOM elements
             const buyInInput = document.getElementById('buyIn');
@@ -177,8 +262,13 @@
             const playerNameInput = document.getElementById('playerName');
             const finalChipsInput = document.getElementById('finalChips');
             const rebuysInput = document.getElementById('rebuys');
+            const handsInput = document.getElementById('hands');
             const playerList = document.getElementById('playerList');
             const resultsContainer = document.getElementById('resultsContainer');
+            const modeToggle = document.getElementById('modeToggle');
+            const rebuysContainer = document.getElementById('rebuysContainer');
+            const handsContainer = document.getElementById('handsContainer');
+            const modeDescription = document.getElementById('modeDescription');
             
             // Buttons
             const addPlayerBtn = document.getElementById('addPlayerBtn');
@@ -187,6 +277,24 @@
             const calculateBtn = document.getElementById('calculateBtn');
             const clearAllBtn = document.getElementById('clearAllBtn');
 
+            // Mode toggle event
+            modeToggle.addEventListener('change', function() {
+                isGroupMode = this.checked;
+                if (isGroupMode) {
+                    rebuysContainer.classList.add('hidden');
+                    handsContainer.classList.remove('hidden');
+                    modeDescription.textContent = "Group mode calculates based on hands played (no rebuys)";
+                } else {
+                    rebuysContainer.classList.remove('hidden');
+                    handsContainer.classList.add('hidden');
+                    modeDescription.textContent = "Tournament mode uses rebuys, Group mode uses total hands played";
+                }
+                // Clear player list when changing modes
+                players = [];
+                selectedPlayerIndex = -1;
+                updatePlayerList();
+            });
+            
             // Add player event
             addPlayerBtn.addEventListener('click', addPlayer);
             
@@ -220,7 +328,11 @@
                     const player = players[selectedPlayerIndex];
                     playerNameInput.value = player.name;
                     finalChipsInput.value = player.chips;
-                    rebuysInput.value = player.rebuys;
+                    if (isGroupMode) {
+                        handsInput.value = player.hands || 0;
+                    } else {
+                        rebuysInput.value = player.rebuys || 0;
+                    }
                 }
             });
 
@@ -229,18 +341,38 @@
                 try {
                     const name = playerNameInput.value.trim();
                     const chips = parseInt(finalChipsInput.value);
-                    const rebuys = parseInt(rebuysInput.value);
                     
-                    if (!name || isNaN(chips) || chips < 0 || isNaN(rebuys) || rebuys < 0) {
+                    if (!name || isNaN(chips) || chips < 0) {
                         throw new Error('Please enter valid player data');
                     }
                     
+                    // Get mode-specific value
+                    let modeValue;
+                    if (isGroupMode) {
+                        modeValue = parseInt(handsInput.value);
+                        if (isNaN(modeValue) || modeValue < 0) {
+                            throw new Error('Please enter valid number of hands');
+                        }
+                    } else {
+                        modeValue = parseInt(rebuysInput.value);
+                        if (isNaN(modeValue) || modeValue < 0) {
+                            throw new Error('Please enter valid number of rebuys');
+                        }
+                    }
+                    
                     // Add player to array
-                    players.push({
+                    const playerData = {
                         name: name,
-                        chips: chips,
-                        rebuys: rebuys
-                    });
+                        chips: chips
+                    };
+                    
+                    if (isGroupMode) {
+                        playerData.hands = modeValue;
+                    } else {
+                        playerData.rebuys = modeValue;
+                    }
+                    
+                    players.push(playerData);
                     
                     // Update player list
                     updatePlayerList();
@@ -265,18 +397,44 @@
                     
                     const name = playerNameInput.value.trim();
                     const chips = parseInt(finalChipsInput.value);
-                    const rebuys = parseInt(rebuysInput.value);
                     
-                    if (!name || isNaN(chips) || chips < 0 || isNaN(rebuys) || rebuys < 0) {
+                    if (!name || isNaN(chips) || chips < 0) {
                         throw new Error('Please enter valid player data');
                     }
                     
+                    // Get mode-specific value
+                    let modeValue;
+                    if (isGroupMode) {
+                        modeValue = parseInt(handsInput.value);
+                        if (isNaN(modeValue) || modeValue < 0) {
+                            throw new Error('Please enter valid number of hands');
+                        }
+                    } else {
+                        modeValue = parseInt(rebuysInput.value);
+                        if (isNaN(modeValue) || modeValue < 0) {
+                            throw new Error('Please enter valid number of rebuys');
+                        }
+                    }
+                    
                     // Update player in array
-                    players[selectedPlayerIndex] = {
+                    const playerData = {
                         name: name,
-                        chips: chips,
-                        rebuys: rebuys
+                        chips: chips
                     };
+                    
+                    if (isGroupMode) {
+                        playerData.hands = modeValue;
+                        if (players[selectedPlayerIndex].rebuys !== undefined) {
+                            delete players[selectedPlayerIndex].rebuys;
+                        }
+                    } else {
+                        playerData.rebuys = modeValue;
+                        if (players[selectedPlayerIndex].hands !== undefined) {
+                            delete players[selectedPlayerIndex].hands;
+                        }
+                    }
+                    
+                    players[selectedPlayerIndex] = playerData;
                     
                     // Update player list
                     updatePlayerList();
@@ -333,12 +491,27 @@
                     playerItem.className = 'player-item p-3 cursor-pointer border border-transparent';
                     playerItem.dataset.index = index;
                     
+                    // Determine which mode value to display
+                    let modeValue;
+                    let modeClass;
+                    let modeLabel;
+                    
+                    if (isGroupMode) {
+                        modeValue = player.hands || 0;
+                        modeClass = 'hands-count';
+                        modeLabel = 'hands';
+                    } else {
+                        modeValue = player.rebuys || 0;
+                        modeClass = 'rebuys-count';
+                        modeLabel = 'rebuys';
+                    }
+                    
                     playerItem.innerHTML = `
                         <div class="flex justify-between items-center">
                             <div class="font-medium">${player.name}</div>
                             <div class="flex space-x-2">
                                 <span class="chip-count text-xs font-bold px-2 py-1 rounded-full">${player.chips} chips</span>
-                                <span class="rebuys-count text-xs font-bold px-2 py-1 rounded-full">${player.rebuys} rebuys</span>
+                                <span class="${modeClass} text-xs font-bold px-2 py-1 rounded-full">${modeValue} ${modeLabel}</span>
                             </div>
                         </div>
                     `;
@@ -351,7 +524,11 @@
             function clearForm() {
                 playerNameInput.value = '';
                 finalChipsInput.value = '';
-                rebuysInput.value = '0';
+                if (isGroupMode) {
+                    handsInput.value = '0';
+                } else {
+                    rebuysInput.value = '0';
+                }
             }
             
             // Calculate payouts function
@@ -369,7 +546,7 @@
                     }
                     
                     // Calculate payouts
-                    const payouts = calculatePayout(players, buyIn, initialStack);
+                    const payouts = calculatePayout(players, buyIn, initialStack, isGroupMode);
                     
                     // Calculate transactions
                     const transactions = settleDebts(payouts);
@@ -383,21 +560,48 @@
             }
             
             // Calculate payout logic
-            function calculatePayout(players, buyIn, initialStack) {
+            function calculatePayout(players, buyIn, initialStack, isGroupMode) {
                 const results = {};
-                const totalBuyIns = players.length + players.reduce((sum, player) => sum + player.rebuys, 0);
-                const totalMoneyInGame = totalBuyIns * buyIn;
-                const totalChipsInGame = totalBuyIns * initialStack;
                 
-                players.forEach(player => {
-                    const name = player.name;
-                    const finalChips = player.chips;
-                    const rebuys = player.rebuys;
-                    const totalInvestment = (1 + rebuys) * buyIn;
-                    const chipShareValue = (finalChips / totalChipsInGame) * totalMoneyInGame;
-                    const netResult = chipShareValue - totalInvestment;
-                    results[name] = netResult;
-                });
+                if (isGroupMode) {
+                    // Group mode calculation
+                    const totalHands = players.reduce((sum, player) => sum + (player.hands || 0), 0);
+                    const totalChipsInGame = players.reduce((sum, player) => sum + player.chips, 0);
+                    
+                    if (totalHands === 0) {
+                        throw new Error('Total hands played cannot be zero');
+                    }
+                    
+                    players.forEach(player => {
+                        const name = player.name;
+                        const finalChips = player.chips;
+                        const hands = player.hands || 0;
+                        
+                        // Each hand is worth the buy-in amount
+                        const totalInvestment = hands * buyIn;
+                        
+                        // Chip share is proportional to final chips
+                        const chipShareValue = (finalChips / totalChipsInGame) * (totalHands * buyIn);
+                        
+                        const netResult = chipShareValue - totalInvestment;
+                        results[name] = netResult;
+                    });
+                } else {
+                    // Tournament mode calculation (original logic)
+                    const totalBuyIns = players.length + players.reduce((sum, player) => sum + (player.rebuys || 0), 0);
+                    const totalMoneyInGame = totalBuyIns * buyIn;
+                    const totalChipsInGame = totalBuyIns * initialStack;
+                    
+                    players.forEach(player => {
+                        const name = player.name;
+                        const finalChips = player.chips;
+                        const rebuys = player.rebuys || 0;
+                        const totalInvestment = (1 + rebuys) * buyIn;
+                        const chipShareValue = (finalChips / totalChipsInGame) * totalMoneyInGame;
+                        const netResult = chipShareValue - totalInvestment;
+                        results[name] = netResult;
+                    });
+                }
                 
                 return results;
             }
@@ -447,10 +651,43 @@
             }
             
             // Display results
+            // Display results
             function displayResults(payouts, transactions) {
+                // Chip consistency check
+                let chipMessage = '';
+                const initialStack = parseInt(initialStackInput.value);
+
+                if (!isNaN(initialStack)) {
+                    let expectedTotalChips;
+                    let description;
+
+                    if (isGroupMode) {
+                        const totalHands = players.reduce((sum, player) => sum + (player.hands || 0), 0);
+                        expectedTotalChips = totalHands * initialStack;
+                        description = `Expected total chips based on hands played (${totalHands} hands × ${initialStack} chips per hand)`;
+                    } else {
+                        const totalRebuys = players.reduce((sum, player) => sum + (player.rebuys || 0), 0);
+                        expectedTotalChips = (players.length + totalRebuys) * initialStack;
+                        description = `Expected total chips based on players and rebuys (${players.length} players + ${totalRebuys} rebuys × ${initialStack} chips)`;
+                    }
+
+                    const actualTotalChips = players.reduce((sum, player) => sum + player.chips, 0);
+                    const chipDifference = actualTotalChips - expectedTotalChips;
+
+                    if (chipDifference !== 0) {
+                        const diffText = chipDifference > 0 ? `+${chipDifference}` : `${chipDifference}`;
+                        chipMessage = `⚠️ Chip mismatch: ${diffText} chips (${description}, actual: ${actualTotalChips})`;
+                    } else {
+                        chipMessage = `✅ Total chips match expected value. ${description}.`;
+                    }
+                }
+
                 // Create net results section
                 let resultsHTML = `
                     <div class="mb-6">
+                        <div class="text-sm mb-4 p-3 rounded-md ${chipMessage.includes('⚠️') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">
+                            ${chipMessage}
+                        </div>
                         <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
                             <i class="fas fa-chart-line mr-2 text-indigo-500"></i> Net Results
                         </h3>
@@ -458,7 +695,7 @@
                             <p class="text-sm text-gray-600 mb-3">Positive means they are owed money, negative means they owe money</p>
                             <div class="space-y-2">
                 `;
-                
+
                 // Add each player's net result
                 for (const [player, balance] of Object.entries(payouts)) {
                     const balanceClass = balance >= 0 ? 'positive-balance' : 'negative-balance';
@@ -470,13 +707,13 @@
                         </div>
                     `;
                 }
-                
+
                 resultsHTML += `
                             </div>
                         </div>
                     </div>
                 `;
-                
+
                 // Create transactions section
                 resultsHTML += `
                     <div>
@@ -485,7 +722,7 @@
                         </h3>
                         <div class="space-y-3">
                 `;
-                
+
                 if (transactions.length === 0) {
                     resultsHTML += `
                         <div class="text-center py-4 text-gray-500">
@@ -508,15 +745,16 @@
                         `;
                     });
                 }
-                
+
                 resultsHTML += `
                         </div>
                     </div>
                 `;
-                
+
                 // Update results container
                 resultsContainer.innerHTML = resultsHTML;
             }
+
             
             // Clear all function
             function clearAll() {
